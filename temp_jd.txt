@@ -1,0 +1,25 @@
+Job Title: AI/ML Software Engineer Intern
+
+We are looking for a highly motivated AI/ML Software Engineer Intern to assist in the development of an AI-powered interview system. The candidate should have a strong foundation in Python programming, experience working with machine learning libraries (such as scikit-learn, TensorFlow, or PyTorch), and familiarity with language models like LLaMA or GPT.
+
+Key Responsibilities:
+- Design and implement intelligent question generation systems.
+- Integrate speech recognition tools like Whisper and text-to-speech engines.
+- Analyze resumes and job descriptions using NLP techniques.
+- Handle JSON and text file I/O for dynamic input/output handling.
+- Collaborate on developing interactive interview simulations.
+
+Required Skills:
+- Python
+- Natural Language Processing (NLP)
+- Speech Recognition (e.g., Whisper, speech_recognition)
+- AI Language Models (LLaMA, GPT)
+- Flask or any backend framework
+- JSON and file handling
+- Version control with Git
+
+Preferred:
+- Knowledge of Docker and deployment on AWS
+- Experience with React or similar frontend libraries
+
+This is a project-based role, and performance during the internship may lead to future opportunities.

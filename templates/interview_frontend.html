@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview App Test Client</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/google-fonts/1.0.0/google-fonts.css" rel="stylesheet">
+    <!-- Socket.io -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4cc9f0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --danger-color: #f44336;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f5f7fa;
+            color: var(--dark-color);
+            min-height: 100vh;
+            padding-bottom: 3rem;
+            position: relative;
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .app-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            position: relative;
+            margin-top: -50px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            background-color: rgba(67, 97, 238, 0.05);
+            border-bottom: none;
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+        }
+
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25);
+        }
+
+        label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .progress-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+
+        .progress-step {
+            flex: 1;
+            text-align: center;
+            padding: 0.5rem;
+            position: relative;
+        }
+
+        .progress-step::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background-color: #e0e0e0;
+            z-index: 0;
+        }
+
+        .progress-step:last-child::after {
+            display: none;
+        }
+
+        .step-number {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #e0e0e0;
+            color: var(--dark-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 0.5rem;
+            position: relative;
+            z-index: 1;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.active .step-number {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .progress-step.completed .step-number {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .question-container {
+            background-color: rgba(67, 97, 238, 0.05);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.35rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-connected {
+            background-color: rgba(76, 201, 240, 0.15);
+            color: var(--accent-color);
+        }
+
+        .status-waiting {
+            background-color: rgba(255, 152, 0, 0.15);
+            color: var(--warning-color);
+        }
+
+        .status-complete {
+            background-color: rgba(76, 175, 80, 0.15);
+            color: var(--success-color);
+        }
+
+        .status-error {
+            background-color: rgba(244, 67, 54, 0.15);
+            color: var(--danger-color);
+        }
+
+        .recording-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background-color: var(--danger-color);
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(244, 67, 54, 0);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
+            }
+        }
+
+        .results-container {
+            background-color: rgba(76, 175, 80, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(76, 175, 80, 0.2);
+        }
+
+        .results-container pre {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+
+        .custom-file-input::-webkit-file-upload-button {
+            visibility: hidden;
+            width: 0;
+        }
+
+        .custom-file-input::before {
+            content: 'Browse';
+            display: inline-block;
+            background: var(--light-color);
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            outline: none;
+            white-space: nowrap;
+            cursor: pointer;
+            font-weight: 500;
+            margin-left: 10px;
+        }
+
+        .custom-file-input:hover::before {
+            border-color: var(--primary-color);
+        }
+
+        .file-input-container {
+            position: relative;
+        }
+
+        .file-name {
+            position: absolute;
+            left: 110px;
+            top: 50%;
+            transform: translateY(-50%);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-header text-center">
+        <h1 class="mb-0"><i class="fas fa-comments me-2"></i>Interview Test Client</h1>
+        <p class="lead mt-2">Prepare for your next interview with AI assistance</p>
+    </div>
+
+    <div class="container app-container">
+        <div id="setup">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0"><i class="fas fa-play-circle me-2"></i>Start Interview</h2>
+                <span class="badge bg-light text-dark">Step 1/2</span>
+            </div>
+
+            <form id="start-form" class="needs-validation" novalidate>
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-briefcase me-2"></i>Job Details
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Job Description:</label>
+                            <textarea id="description" class="form-control" rows="5" placeholder="Enter the job description here..." required></textarea>
+                            <div class="form-text">Provide a detailed job description for better interview questions.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="num_questions" class="form-label">Number of Questions:</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-list-ol"></i></span>
+                                <input type="number" id="num_questions" class="form-control" value="3" min="1" max="10" required>
+                            </div>
+                            <div class="form-text">Choose between 1-10 questions for your interview.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-file-alt me-2"></i>Resume Upload
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="resume_file" class="form-label">Resume File (JSON):</label>
+                            <div class="file-input-container">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-upload"></i></span>
+                                    <input type="file" id="resume_file" class="form-control custom-file-input" accept=".json" required>
+                                </div>
+                                <div id="file-name" class="file-name"></div>
+                            </div>
+                            <div class="form-text">Upload your resume in JSON format.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-rocket me-2"></i>Start Interview
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="interview" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0"><i class="fas fa-comments me-2"></i>Interview Session</h2>
+                <span class="badge bg-light text-dark">Step 2/2</span>
+            </div>
+
+            <div class="progress-indicator mb-4">
+                <div class="progress" style="height: 8px;">
+                    <div id="progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-question-circle me-2"></i>Current Question
+                    </div>
+                    <div>
+                        Question <span id="question-number" class="fw-bold">1</span>/<span id="total-questions">3</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="question-container">
+                        <p id="current-question" class="fs-5">Waiting for question...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-reply me-2"></i>Your Answer
+                </div>
+                <div class="card-body">
+                    <div id="answer-container">
+                        <div class="mb-3">
+                            <textarea id="answer-text" class="form-control" rows="5" placeholder="Type your answer here..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="generate-followup" checked>
+                                <label class="form-check-label" for="generate-followup">Generate follow-up question</label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mb-3">
+                            <button id="submit-text" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-2"></i>Submit Text Answer
+                            </button>
+                            <button id="record-audio" class="btn btn-outline-primary">
+                                <i class="fas fa-microphone me-2"></i>Record Audio
+                            </button>
+                            <button id="stop-audio" class="btn btn-danger" disabled>
+                                <span class="recording-indicator" style="display:none;"></span>
+                                <i class="fas fa-stop me-2"></i>Stop Recording
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-2"></i>Interview Status
+                </div>
+                <div class="card-body">
+                    <div id="status-container">
+                        <p>
+                            <strong>Status:</strong>
+                            <span id="status-badge" class="status-badge status-waiting">
+                                <i class="fas fa-circle-notch fa-spin me-2"></i>
+                                <span id="status">Not connected</span>
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="results" class="results-container" style="display:none;">
+                <h3 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Results</h3>
+                <pre id="analysis-results" class="language-json"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle with Popper -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let socket;
+        let sessionId;
+        let mediaRecorder;
+        let audioChunks = [];
+        let currentQuestionNumber = 0;
+        let totalQuestions = 0;
+
+        // File input enhancement
+        document.getElementById('resume_file').addEventListener('change', function() {
+            if (this.files.length > 0) {
+                document.getElementById('file-name').textContent = this.files[0].name;
+            } else {
+                document.getElementById('file-name').textContent = '';
+            }
+        });
+
+        document.getElementById('start-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const description = document.getElementById('description').value;
+            const num_questions = document.getElementById('num_questions').value;
+            const resumeFile = document.getElementById('resume_file').files[0];
+
+            if (!description || !resumeFile) {
+                alert('Please fill all required fields');
+                return;
+            }
+
+            // Show loading indicator
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+            submitBtn.disabled = true;
+
+            // Create form data
+            const formData = new FormData();
+            formData.append('description', description);
+            formData.append('num_questions', num_questions);
+            formData.append('resume_file', resumeFile);
+
+            try {
+                const response = await fetch('http://localhost:5000/api/start-interview', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.mtype === 'success') {
+                    sessionId = data.session_id;
+                    document.getElementById('setup').style.display = 'none';
+                    document.getElementById('interview').style.display = 'block';
+                    updateStatus('Connected', 'connected');
+                    totalQuestions = parseInt(num_questions);
+
+                    // Connect to WebSocket
+                    connectWebSocket(sessionId);
+                } else {
+                    alert(`Error: ${data.message}`);
+                    // Reset button
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                // Reset button
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+
+        function updateStatus(message, statusClass) {
+            const statusElement = document.getElementById('status');
+            const statusBadge = document.getElementById('status-badge');
+
+            statusElement.textContent = message;
+
+            // Remove all status classes
+            statusBadge.classList.remove('status-waiting', 'status-connected', 'status-complete', 'status-error');
+
+            // Add the appropriate class
+            if (statusClass) {
+                statusBadge.classList.add(`status-${statusClass}`);
+
+                // Update icon based on status
+                let iconHTML = '';
+                switch(statusClass) {
+                    case 'connected':
+                        iconHTML = '<i class="fas fa-check-circle me-2"></i>';
+                        break;
+                    case 'waiting':
+                        iconHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i>';
+                        break;
+                    case 'complete':
+                        iconHTML = '<i class="fas fa-flag-checkered me-2"></i>';
+                        break;
+                    case 'error':
+                        iconHTML = '<i class="fas fa-exclamation-circle me-2"></i>';
+                        break;
+                    default:
+                        iconHTML = '<i class="fas fa-info-circle me-2"></i>';
+                }
+
+                statusBadge.innerHTML = iconHTML + message;
+            }
+        }
+
+        function updateProgressBar() {
+            const progressPercentage = (currentQuestionNumber / totalQuestions) * 100;
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = `${progressPercentage}%`;
+            progressBar.setAttribute('aria-valuenow', progressPercentage);
+        }
+
+        function connectWebSocket(sessionId) {
+            socket = io('http://localhost:5000');
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                socket.emit('join_session', { session_id: sessionId });
+                updateStatus('Connecting to session...', 'waiting');
+            });
+
+            socket.on('joined_session', (data) => {
+                console.log('Joined session:', data.session_id);
+                updateStatus('Session joined, waiting for first question...', 'connected');
+            });
+
+            socket.on('interview_status', (data) => {
+                updateStatus(data.status, 'connected');
+            });
+
+            socket.on('new_question', (data) => {
+                document.getElementById('current-question').textContent = data.question;
+                document.getElementById('question-number').textContent = data.question_number;
+                document.getElementById('total-questions').textContent = data.total_questions;
+
+                currentQuestionNumber = parseInt(data.question_number);
+                totalQuestions = parseInt(data.total_questions);
+                updateProgressBar();
+
+                // Scroll to the question
+                document.getElementById('current-question').scrollIntoView({ behavior: 'smooth' });
+            });
+
+            socket.on('answer_received', (data) => {
+                console.log('Answer received:', data);
+                updateStatus('Answer received, processing...', 'waiting');
+            });
+
+            socket.on('interview_complete', (data) => {
+                updateStatus('Interview Complete', 'complete');
+                document.getElementById('results').style.display = 'block';
+                document.getElementById('analysis-results').textContent = JSON.stringify(data, null, 2);
+
+                // Update progress to 100%
+                currentQuestionNumber = totalQuestions;
+                updateProgressBar();
+
+                // Scroll to results
+                document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+            });
+
+            socket.on('error', (data) => {
+                updateStatus(`Error: ${data.message}`, 'error');
+                alert(`Error: ${data.message}`);
+            });
+        }
+
+        document.getElementById('submit-text').addEventListener('click', function() {
+            const answerText = document.getElementById('answer-text').value;
+            const generateFollowUp = document.getElementById('generate-followup').checked;
+
+            if (!answerText) {
+                alert('Please enter an answer');
+                return;
+            }
+
+            // Show loading state
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+            this.disabled = true;
+
+            socket.emit('submit_answer', {
+                session_id: sessionId,
+                text: answerText,
+                generateFollowUp: generateFollowUp
+            });
+
+            document.getElementById('answer-text').value = '';
+
+            // Reset button after a short delay
+            setTimeout(() => {
+                this.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Text Answer';
+                this.disabled = false;
+            }, 1000);
+        });
+
+        document.getElementById('record-audio').addEventListener('click', async function() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = function() {
+                        const base64Audio = reader.result.split(',')[1];
+                        const generateFollowUp = document.getElementById('generate-followup').checked;
+
+                        socket.emit('submit_answer', {
+                            session_id: sessionId,
+                            audio: base64Audio,
+                            generateFollowUp: generateFollowUp
+                        });
+                    };
+
+                    // Stop all audio tracks
+                    stream.getTracks().forEach(track => track.stop());
+
+                    // Hide recording indicator
+                    document.querySelector('.recording-indicator').style.display = 'none';
+                };
+
+                mediaRecorder.start();
+                document.getElementById('record-audio').disabled = true;
+                document.getElementById('stop-audio').disabled = false;
+
+                // Show recording indicator
+                document.querySelector('.recording-indicator').style.display = 'inline-block';
+                updateStatus('Recording audio...', 'waiting');
+
+            } catch (error) {
+                updateStatus(`Error recording audio: ${error.message}`, 'error');
+                alert(`Error recording audio: ${error.message}`);
+            }
+        });
+
+        document.getElementById('stop-audio').addEventListener('click', function() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                document.getElementById('record-audio').disabled = false;
+                document.getElementById('stop-audio').disabled = true;
+                updateStatus('Processing audio response...', 'waiting');
+            }
+        });
+    </script>
+</body>
+</html>
