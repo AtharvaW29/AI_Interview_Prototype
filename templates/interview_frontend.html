@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview App Test Client</title>
+    <title>AI Interview Assistant</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/google-fonts/1.0.0/google-fonts.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Socket.io -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
 
@@ -121,57 +121,7 @@
         }
 
         .progress-indicator {
-            display: flex;
-            justify-content: space-between;
             margin-bottom: 2rem;
-        }
-
-        .progress-step {
-            flex: 1;
-            text-align: center;
-            padding: 0.5rem;
-            position: relative;
-        }
-
-        .progress-step::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            right: -50%;
-            width: 100%;
-            height: 2px;
-            background-color: #e0e0e0;
-            z-index: 0;
-        }
-
-        .progress-step:last-child::after {
-            display: none;
-        }
-
-        .step-number {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background-color: #e0e0e0;
-            color: var(--dark-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 0.5rem;
-            position: relative;
-            z-index: 1;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .progress-step.active .step-number {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .progress-step.completed .step-number {
-            background-color: var(--success-color);
-            color: white;
         }
 
         .question-container {
@@ -290,18 +240,116 @@
             text-overflow: ellipsis;
             max-width: 200px;
         }
+
+        .big-recording-button {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            margin: 0 auto;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .big-recording-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .big-recording-button.recording {
+            background-color: var(--danger-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        .recording-time {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .audio-visualizer {
+            width: 100%;
+            height: 60px;
+            background-color: rgba(67, 97, 238, 0.05);
+            border-radius: 8px;
+            margin: 1rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .visualizer-bars {
+            display: flex;
+            height: 100%;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 10px;
+        }
+
+        .visualizer-bar {
+            width: 5px;
+            background-color: var(--primary-color);
+            border-radius: 2px;
+            margin: 0 2px;
+        }
+
+        .recording-instructions {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .interview-tips {
+            background-color: rgba(67, 97, 238, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .interview-tips h5 {
+            color: var(--primary-color);
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .interview-tips ul {
+            padding-left: 1.5rem;
+            margin-bottom: 0;
+        }
+
+        .transcription-box {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            border: 1px solid #e0e0e0;
+            min-height: 100px;
+        }
+
+        .transcription-title {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
     </style>
 </head>
 <body>
     <div class="app-header text-center">
-        <h1 class="mb-0"><i class="fas fa-comments me-2"></i>Interview Test Client</h1>
-        <p class="lead mt-2">Prepare for your next interview with AI assistance</p>
+        <h1 class="mb-0"><i class="fas fa-comments me-2"></i>AI Interview Assistant</h1>
+        <p class="lead mt-2">Practice your interview skills with AI-powered feedback</p>
     </div>
 
     <div class="container app-container">
         <div id="setup">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="mb-0"><i class="fas fa-play-circle me-2"></i>Start Interview</h2>
+                <h2 class="mb-0"><i class="fas fa-play-circle me-2"></i>Start Your Interview</h2>
                 <span class="badge bg-light text-dark">Step 1/2</span>
             </div>
 
@@ -312,9 +360,9 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label for="description" class="form-label">Description:</label>
-                            <textarea id="description" class="form-control" rows="5" placeholder="Enter the description here..." required></textarea>
-                            <div class="form-text">Provide a detailed description for better interview questions.</div>
+                            <label for="description" class="form-label">Job Description:</label>
+                            <textarea id="description" class="form-control" rows="5" placeholder="Paste the job description here for targeted interview questions..." required></textarea>
+                            <div class="form-text">The more detailed the job description, the more relevant the interview questions will be.</div>
                         </div>
 
                         <div class="mb-3">
@@ -323,7 +371,7 @@
                                 <span class="input-group-text"><i class="fas fa-list-ol"></i></span>
                                 <input type="number" id="num_questions" class="form-control" value="3" min="1" max="10" required>
                             </div>
-                            <div class="form-text">Choose between 1-10 questions for your interview.</div>
+                            <div class="form-text">Choose between 1-10 questions for your interview session.</div>
                         </div>
                     </div>
                 </div>
@@ -334,7 +382,7 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label for="resume_file" class="form-label">Resume File (JSON):</label>
+                            <label for="resume_file" class="form-label">Your Resume (JSON Format):</label>
                             <div class="file-input-container">
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-upload"></i></span>
@@ -342,7 +390,7 @@
                                 </div>
                                 <div id="file-name" class="file-name"></div>
                             </div>
-                            <div class="form-text">Upload your resume in JSON format.</div>
+                            <div class="form-text">Upload your resume in JSON format to tailor questions to your experience.</div>
                         </div>
                     </div>
                 </div>
@@ -365,6 +413,10 @@
                 <div class="progress" style="height: 8px;">
                     <div id="progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <span class="small">Question <span id="question-number">1</span>/<span id="total-questions">3</span></span>
+                    <span id="interview-progress-text" class="small text-muted">In progress</span>
+                </div>
             </div>
 
             <div class="card mb-4">
@@ -372,45 +424,51 @@
                     <div>
                         <i class="fas fa-question-circle me-2"></i>Current Question
                     </div>
-                    <div>
-                        Question <span id="question-number" class="fw-bold">1</span>/<span id="total-questions">3</span>
-                    </div>
                 </div>
                 <div class="card-body">
                     <div class="question-container">
-                        <p id="current-question" class="fs-5">Waiting for question...</p>
+                        <p id="current-question" class="fs-5">Waiting for your first question...</p>
+                    </div>
+
+                    <div class="interview-tips">
+                        <h5><i class="fas fa-lightbulb me-2"></i>Interview Tip:</h5>
+                        <p id="interview-tip" class="mb-0 small">Remember to speak clearly and confidently. Pause to collect your thoughts before answering.</p>
                     </div>
                 </div>
             </div>
 
             <div class="card mb-4">
                 <div class="card-header">
-                    <i class="fas fa-reply me-2"></i>Your Answer
+                    <i class="fas fa-microphone me-2"></i>Record Your Answer
                 </div>
                 <div class="card-body">
-                    <div id="answer-container">
-                        <div class="mb-3">
-                            <textarea id="answer-text" class="form-control" rows="5" placeholder="Type your answer here..."></textarea>
+                    <div id="answer-container" class="text-center">
+                        <p class="recording-instructions">Click the microphone button to start recording your answer. Click again to stop.</p>
+
+                        <div class="audio-visualizer">
+                            <div id="visualizer-container" class="visualizer-bars">
+                                <!-- Visualizer bars will be added dynamically -->
+                            </div>
                         </div>
 
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="generate-followup" checked>
+                        <div class="big-recording-button" id="toggle-recording">
+                            <i class="fas fa-microphone"></i>
+                        </div>
+
+                        <div class="recording-time" id="recording-time">00:00</div>
+
+                        <div class="mb-3 mt-4">
+                            <div class="form-check form-switch d-flex justify-content-center">
+                                <input class="form-check-input me-2" type="checkbox" id="generate-followup" checked>
                                 <label class="form-check-label" for="generate-followup">Generate follow-up question</label>
                             </div>
                         </div>
 
-                        <div class="d-flex gap-2 mb-3">
-                            <button id="submit-text" class="btn btn-primary">
-                                <i class="fas fa-paper-plane me-2"></i>Submit Text Answer
-                            </button>
-                            <button id="record-audio" class="btn btn-outline-primary">
-                                <i class="fas fa-microphone me-2"></i>Record Audio
-                            </button>
-                            <button id="stop-audio" class="btn btn-danger" disabled>
-                                <span class="recording-indicator" style="display:none;"></span>
-                                <i class="fas fa-stop me-2"></i>Stop Recording
-                            </button>
+                        <div id="transcription-container" class="mt-4" style="display:none;">
+                            <div class="transcription-title">Your Transcribed Answer:</div>
+                            <div class="transcription-box" id="transcription-text">
+                                <!-- Transcribed text will appear here -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -426,7 +484,7 @@
                             <strong>Status:</strong>
                             <span id="status-badge" class="status-badge status-waiting">
                                 <i class="fas fa-circle-notch fa-spin me-2"></i>
-                                <span id="status">Not connected</span>
+                                <span id="status-text">Waiting to connect...</span>
                             </span>
                         </p>
                     </div>
@@ -434,7 +492,7 @@
             </div>
 
             <div id="results" class="results-container" style="display:none;">
-                <h3 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Results</h3>
+                <h3 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Interview Analysis</h3>
                 <pre id="analysis-results" class="language-json"></pre>
             </div>
         </div>
@@ -444,12 +502,47 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        // Global Variables
         let socket;
         let sessionId;
         let mediaRecorder;
+        let audioContext;
+        let audioStream;
         let audioChunks = [];
         let currentQuestionNumber = 0;
         let totalQuestions = 0;
+        let recordingStartTime;
+        let recordingTimer;
+        let analyser;
+        let dataArray;
+        let visualizerBars = [];
+        let isRecording = false;
+
+        // Interview tips to cycle through
+        const interviewTips = [
+            "Take a moment to structure your thoughts before answering.",
+            "Use the STAR method: Situation, Task, Action, Result when describing experiences.",
+            "Speak clearly and at a moderate pace to ensure your points are understood.",
+            "Highlight relevant skills and experiences that match the job description.",
+            "Be specific with examples rather than giving generic answers.",
+            "It's okay to pause briefly to gather your thoughts during complex questions.",
+            "Maintain a positive tone even when discussing challenges or conflicts.",
+            "Quantify your achievements whenever possible with numbers or percentages.",
+            "Keep your answers focused and relevant to the question asked.",
+            "Show enthusiasm for the role and company in your responses."
+        ];
+
+        // Function to update interview tip randomly
+        function updateInterviewTip() {
+            const tipIndex = Math.floor(Math.random() * interviewTips.length);
+            document.getElementById('interview-tip').textContent = interviewTips[tipIndex];
+        }
+
+        // Update tip when starting and after each question
+        function cycleTip() {
+            updateInterviewTip();
+            setTimeout(updateInterviewTip, 15000); // Change tip every 15 seconds
+        }
 
         // File input enhancement
         document.getElementById('resume_file').addEventListener('change', function() {
@@ -460,6 +553,69 @@
             }
         });
 
+        // Setup audio visualizer
+        function setupAudioVisualizer() {
+            const visualizerContainer = document.getElementById('visualizer-container');
+            visualizerContainer.innerHTML = '';
+
+            // Create visualizer bars
+            const barCount = 30;
+            for (let i = 0; i < barCount; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'visualizer-bar';
+                bar.style.height = '2px';
+                visualizerContainer.appendChild(bar);
+                visualizerBars.push(bar);
+            }
+        }
+
+        // Initialize audio context and analyzer
+        function initializeAudioContext(stream) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 64;
+            source.connect(analyser);
+
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            // Start visualization
+            updateVisualization();
+        }
+
+        // Update visualization in animation frame
+        function updateVisualization() {
+            if (!isRecording) return;
+
+            requestAnimationFrame(updateVisualization);
+
+            analyser.getByteFrequencyData(dataArray);
+
+            for (let i = 0; i < visualizerBars.length; i++) {
+                const index = Math.floor(i * dataArray.length / visualizerBars.length);
+                const value = dataArray[index] / 255.0;
+                const height = Math.max(2, value * 60);
+                visualizerBars[i].style.height = height + 'px';
+            }
+        }
+
+        // Format recording time as MM:SS
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Update recording timer display
+        function updateRecordingTime() {
+            if (!recordingStartTime) return;
+
+            const elapsed = Date.now() - recordingStartTime;
+            document.getElementById('recording-time').textContent = formatTime(elapsed);
+        }
+
+        // Start form submission
         document.getElementById('start-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -468,7 +624,7 @@
             const resumeFile = document.getElementById('resume_file').files[0];
 
             if (!description || !resumeFile) {
-                alert('Please fill all required fields');
+                alert('Please fill in all required fields');
                 return;
             }
 
@@ -496,8 +652,13 @@
                     sessionId = data.session_id;
                     document.getElementById('setup').style.display = 'none';
                     document.getElementById('interview').style.display = 'block';
-                    updateStatus('Connected', 'connected');
+
+                    // Initialize the interview environment
                     totalQuestions = parseInt(num_questions);
+                    document.getElementById('total-questions').textContent = totalQuestions;
+                    setupAudioVisualizer();
+                    updateStatus('Connecting to interview session...', 'waiting');
+                    cycleTip();
 
                     // Connect to WebSocket
                     connectWebSocket(sessionId);
@@ -515,78 +676,130 @@
             }
         });
 
+        // Update status display
         function updateStatus(message, statusClass) {
-            const statusElement = document.getElementById('status');
+            const statusElement = document.getElementById('status-text');
             const statusBadge = document.getElementById('status-badge');
 
-            statusElement.textContent = message;
+            if (statusElement && statusBadge) {
+                statusElement.textContent = message;
 
-            // Remove all status classes
-            statusBadge.classList.remove('status-waiting', 'status-connected', 'status-complete', 'status-error');
+                // Remove all status classes
+                statusBadge.classList.remove('status-waiting', 'status-connected', 'status-complete', 'status-error');
 
-            // Add the appropriate class
-            if (statusClass) {
-                statusBadge.classList.add(`status-${statusClass}`);
+                // Add the appropriate class
+                if (statusClass) {
+                    statusBadge.classList.add(`status-${statusClass}`);
 
-                // Update icon based on status
-                let iconHTML = '';
-                switch(statusClass) {
-                    case 'connected':
-                        iconHTML = '<i class="fas fa-check-circle me-2"></i>';
-                        break;
-                    case 'waiting':
-                        iconHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i>';
-                        break;
-                    case 'complete':
-                        iconHTML = '<i class="fas fa-flag-checkered me-2"></i>';
-                        break;
-                    case 'error':
-                        iconHTML = '<i class="fas fa-exclamation-circle me-2"></i>';
-                        break;
-                    default:
-                        iconHTML = '<i class="fas fa-info-circle me-2"></i>';
+                    // Update icon based on status
+                    let iconHTML = '';
+                    switch(statusClass) {
+                        case 'connected':
+                            iconHTML = '<i class="fas fa-check-circle me-2"></i>';
+                            break;
+                        case 'waiting':
+                            iconHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i>';
+                            break;
+                        case 'complete':
+                            iconHTML = '<i class="fas fa-flag-checkered me-2"></i>';
+                            break;
+                        case 'error':
+                            iconHTML = '<i class="fas fa-exclamation-circle me-2"></i>';
+                            break;
+                        default:
+                            iconHTML = '<i class="fas fa-info-circle me-2"></i>';
+                    }
+
+                    // Update the status badge HTML
+                    statusBadge.innerHTML = `${iconHTML}<span id="status-text">${message}</span>`;
                 }
-
-                statusBadge.innerHTML = iconHTML + message;
             }
         }
 
+        // Update progress bar
         function updateProgressBar() {
             const progressPercentage = (currentQuestionNumber / totalQuestions) * 100;
             const progressBar = document.getElementById('progress-bar');
-            progressBar.style.width = `${progressPercentage}%`;
-            progressBar.setAttribute('aria-valuenow', progressPercentage);
+            if (progressBar) {
+                progressBar.style.width = `${progressPercentage}%`;
+                progressBar.setAttribute('aria-valuenow', progressPercentage);
+            }
+
+            // Update progress text
+            const progressText = document.getElementById('interview-progress-text');
+            if (progressText) {
+                if (progressPercentage === 100) {
+                    progressText.textContent = 'Complete';
+                } else {
+                    progressText.textContent = `${Math.round(progressPercentage)}% complete`;
+                }
+            }
         }
 
+        // Connect to WebSocket server
         function connectWebSocket(sessionId) {
-            socket = io('http://localhost:5000');
+            // Close any existing connection
+            if (socket) {
+                socket.close();
+            }
 
-            socket.on('connect', () => {
-                console.log('Connected to server');
-                socket.emit('join_session', { session_id: sessionId });
-                updateStatus('Connecting to session...', 'waiting');
-            });
+                // Connect to socket.io server
+                socket = io('http://localhost:5000', {
+                    reconnectionAttempts: 5,
+                    timeout: 10000,
+                    transports: ['websocket', 'polling']
+                });
 
-            socket.on('joined_session', (data) => {
-                console.log('Joined session:', data.session_id);
-                updateStatus('Session joined, waiting for first question...', 'connected');
-            });
+                // Connection events
+                socket.on('connect', () => {
+                    console.log('Connected to server');
+                    socket.emit('join_session', { session_id: sessionId });
+                    updateStatus('Connected to server, joining session...', 'waiting');
+                });
 
-            socket.on('interview_status', (data) => {
-                updateStatus(data.status, 'connected');
-            });
+                socket.on('connect_error', (error) => {
+                    console.error('Connection error:', error);
+                    updateStatus(`Connection error: ${error.message}`, 'error');
+                });
 
-            socket.on('new_question', (data) => {
-                document.getElementById('current-question').textContent = data.question;
-                document.getElementById('question-number').textContent = data.question_number;
-                document.getElementById('total-questions').textContent = data.total_questions;
+                socket.on('disconnect', (reason) => {
+                    console.log('Disconnected:', reason);
+                    updateStatus(`Disconnected: ${reason}`, 'error');
+                });
 
-                currentQuestionNumber = parseInt(data.question_number);
-                totalQuestions = parseInt(data.total_questions);
-                updateProgressBar();
+                // Session events
+                socket.on('joined_session', (data) => {
+                    console.log('Joined session:', data.session_id);
+                    updateStatus('Session joined, waiting for first question...', 'connected');
+                });
 
-                // Scroll to the question
-                document.getElementById('current-question').scrollIntoView({ behavior: 'smooth' });
+                socket.on('interview_status', (data) => {
+                    updateStatus(data.status, 'connected');
+                });
+
+                socket.on('new_question', (data) => {
+                    document.getElementById('current-question').textContent = data.question;
+                    document.getElementById('question-number').textContent = data.question_number;
+                    document.getElementById('total-questions').textContent = data.total_questions;
+
+                    currentQuestionNumber = parseInt(data.question_number);
+                    totalQuestions = parseInt(data.total_questions);
+                    updateProgressBar();
+
+                    // Reset recording state
+                    isRecording = false;
+                    document.getElementById('toggle-recording').classList.remove('recording');
+                    document.getElementById('recording-time').textContent = '00:00';
+
+                    // Hide transcription if shown
+                    document.getElementById('transcription-container').style.display = 'none';
+
+                    // Update interview tip
+                    updateInterviewTip();
+
+                    // Scroll to the question
+                    document.getElementById('current-question').scrollIntoView({ behavior: 'smooth' });
+                    
             });
 
             socket.on('answer_received', (data) => {
