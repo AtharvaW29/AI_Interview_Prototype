@@ -16,6 +16,7 @@ from read_file_json import read_file, read_json
 from audio_conversion import speech_to_text
 from analyzeSW import analyze_strengths_and_weaknesses
 from follow_up_gen import generate_follow_up
+from description import visa_interview_prompt
 
 
 # Initial Config
@@ -181,7 +182,17 @@ def start_interview():
     # Generate a Session ID
     session_id = request.sid if hasattr(request, 'sid') else f"session_{int(time.time())}"
 
-    description = request.form.get("description", "")
+    # Generate the dynamic prompt
+    embassy = request.form.get("embassy_or_consulate", ""),
+    destination_country = request.form.get("destination_country", ""),
+    course = request.form.get("course", ""),
+    university = request.form.get("university", "")
+
+    filled_prompt = visa_interview_prompt.format(
+        embassy_or_consulate=embassy,
+        destination_country=destination_country,
+        course=course,
+        university=university)
 
     resume_data = {}
     if 'resume_file' in request.files:
@@ -202,10 +213,10 @@ def start_interview():
         num_questions = 2
 
     # Input Field Validation Logic
-    if not description:
+    if not embassy or not destination_country or not course or not university:
         return jsonify({
             "mtype": "warning",
-            "message": "An Interview Description is Required"
+            "message": "Compulsory Fields are Required"
         }), 400
 
     if not resume_data:
@@ -217,7 +228,7 @@ def start_interview():
     # Start the Interview Process in the Background
     thread = threading.Thread(
         target=run_interview,
-        args=(session_id, description, resume_data, num_questions)
+        args=(session_id, filled_prompt, resume_data, num_questions)
     )
     thread.daemon = True
     thread.start()

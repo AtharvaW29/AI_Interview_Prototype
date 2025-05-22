@@ -360,11 +360,21 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label for="description" class="form-label">Job Description:</label>
-                            <textarea id="description" class="form-control" rows="5" placeholder="Paste the job description here for targeted interview questions..." required></textarea>
-                            <div class="form-text">The more detailed the job description, the more relevant the interview questions will be.</div>
+                            <label for="embassy_or_consulate" class="form-label">Embassy or Consulate:</label>
+                            <input type="text" id="embassy_or_consulate" class="form-control" required>
                         </div>
-
+                        <div class="mb-3">
+                            <label for="destination_country" class="form-label">Destination Country:</label>
+                            <input type="text" id="destination_country" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="course" class="form-label">Course:</label>
+                            <input type="text" id="course" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="university" class="form-label">University:</label>
+                            <input type="text" id="university" class="form-control" required>
+                        </div>
                         <div class="mb-3">
                             <label for="num_questions" class="form-label">Number of Questions:</label>
                             <div class="input-group">
@@ -532,6 +542,11 @@
             "Show enthusiasm for the role and company in your responses."
         ];
 
+        // Function to log for debugging
+        function debugLog(message, data = null) {
+            console.log(`[]DEBUG] ${message}`, data ? data : '');
+        }
+
         // Function to update interview tip randomly
         function updateInterviewTip() {
             const tipIndex = Math.floor(Math.random() * interviewTips.length);
@@ -556,7 +571,10 @@
         // Setup audio visualizer
         function setupAudioVisualizer() {
             const visualizerContainer = document.getElementById('visualizer-container');
+            
+            // Clear existing bars
             visualizerContainer.innerHTML = '';
+            visualizerBars = [];
 
             // Create visualizer bars
             const barCount = 30;
@@ -571,10 +589,13 @@
 
         // Initialize audio context and analyzer
         function initializeAudioContext(stream) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
             const source = audioContext.createMediaStreamSource(stream);
             analyser = audioContext.createAnalyser();
-            analyser.fftSize = 64;
+            analyser.fftSize = 256;
             source.connect(analyser);
 
             dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -585,17 +606,21 @@
 
         // Update visualization in animation frame
         function updateVisualization() {
-            if (!isRecording) return;
+            if (!isRecording || !analyser) return;
 
             requestAnimationFrame(updateVisualization);
 
             analyser.getByteFrequencyData(dataArray);
 
+            // Update visualizer bars with audio data
             for (let i = 0; i < visualizerBars.length; i++) {
                 const index = Math.floor(i * dataArray.length / visualizerBars.length);
                 const value = dataArray[index] / 255.0;
                 const height = Math.max(2, value * 60);
-                visualizerBars[i].style.height = height + 'px';
+                
+                if (visualizerBars[i]) {
+                    visualizerBars[i].style.height = height + 'px';
+                }
             }
         }
 
@@ -615,15 +640,94 @@
             document.getElementById('recording-time').textContent = formatTime(elapsed);
         }
 
+        // Toggle recording function
+        async function toggleRecording() {
+            if (!isRecording) {
+                try {
+                    // Start recording
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioStream = stream;
+                    audioChunks = [];
+
+                    mediaRecorder = new MediaRecorder(stream);
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = function() {
+                            const base64Audio = reader.result.split(',')[1];
+                            const generateFollowUp = document.getElementById('generate-followup').checked;
+
+                            // Send the audio data to the server
+                            socket.emit('submit_answer', {
+                                session_id: sessionId,
+                                audio: base64Audio,
+                                generateFollowUp: generateFollowUp
+                            });
+
+                            updateStatus('Processing audio response...', 'waiting');
+
+                            // Show transcription container (server will fill this in)
+                            document.getElementById('transcription-container').style.display = 'block';
+                            document.getElementById('transcription-text').innerHTML = 'Processing your answer...';
+                        };
+
+                        // Stop all audio tracks
+                        audioStream.getTracks().forEach(track => track.stop());
+                    };
+
+                    // Request data from recorder every second and when stopped
+                    mediaRecorder.start(1000);
+                    initializeAudioContext(stream);
+                    isRecording = true;
+                    document.getElementById('toggle-recording').classList.add('recording');
+
+                    // Start timer
+                    recordingStartTime = Date.now();
+                    recordingTimer = setInterval(updateRecordingTime, 1000);
+
+                    updateStatus('Recording answer...', 'waiting');
+
+                } catch (error) {
+                    console.error('Error starting recording:', error);
+                    updateStatus(`Error recording audio: ${error.message}`, 'error');
+                    alert(`Error recording audio: ${error.message}`);
+                }
+            } else {
+                // Stop recording
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+
+                // Stop timer
+                clearInterval(recordingTimer);
+
+                // Reset UI
+                isRecording = false;
+                document.getElementById('toggle-recording').classList.remove('recording');
+            }
+        }
+
+        // Add event listener to recording button
+        document.getElementById('toggle-recording').addEventListener('click', toggleRecording);
+
         // Start form submission
         document.getElementById('start-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const description = document.getElementById('description').value;
+            const embassy_or_consulate = document.getElementById('embassy_or_consulate').value;
+            const destination_country = document.getElementById('destination_country').value;
+            const course = document.getElementById('course').value;
+            const university = document.getElementById('university').value;
             const num_questions = document.getElementById('num_questions').value;
             const resumeFile = document.getElementById('resume_file').files[0];
 
-            if (!description || !resumeFile) {
+            if (!embassy_or_consulate || !destination_country || !course || !university || !resumeFile) {
                 alert('Please fill in all required fields');
                 return;
             }
@@ -634,22 +738,32 @@
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
             submitBtn.disabled = true;
 
-            // Create form data
-            const formData = new FormData();
-            formData.append('description', description);
-            formData.append('num_questions', num_questions);
-            formData.append('resume_file', resumeFile);
-
             try {
+                // Create form data
+                const formData = new FormData();
+                formData.append('embassy_or_consulate', embassy_or_consulate);
+                formData.append('destination_country', destination_country);
+                formData.append('course', course);
+                formData.append('university', university);
+                formData.append('num_questions', num_questions);
+                formData.append('resume_file', resumeFile);
+
+                // Make sure the API endpoint is correct
                 const response = await fetch('http://localhost:5000/api/start-interview', {
                     method: 'POST',
                     body: formData
                 });
 
+                if (!response.ok) {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
+
                 const data = await response.json();
 
                 if (data.mtype === 'success') {
                     sessionId = data.session_id;
+                    debugLog('Session started with ID:', sessionId);
+                    // Hide setup and show interview
                     document.getElementById('setup').style.display = 'none';
                     document.getElementById('interview').style.display = 'block';
 
@@ -663,12 +777,10 @@
                     // Connect to WebSocket
                     connectWebSocket(sessionId);
                 } else {
-                    alert(`Error: ${data.message}`);
-                    // Reset button
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
+                    throw new Error(data.message || 'Unknown error occurred');
                 }
             } catch (error) {
+                console.error("Error submitting form:", error);
                 alert(`Error: ${error.message}`);
                 // Reset button
                 submitBtn.innerHTML = originalText;
@@ -703,211 +815,282 @@
                         case 'complete':
                             iconHTML = '<i class="fas fa-flag-checkered me-2"></i>';
                             break;
-                        case 'error':
-                            iconHTML = '<i class="fas fa-exclamation-circle me-2"></i>';
-                            break;
-                        default:
-                            iconHTML = '<i class="fas fa-info-circle me-2"></i>';
-                    }
-
-                    // Update the status badge HTML
-                    statusBadge.innerHTML = `${iconHTML}<span id="status-text">${message}</span>`;
+                    case 'error':
+                        iconHTML = '<i class="fas fa-exclamation-circle me-2"></i>';
+                        break;
+                    default:
+                        iconHTML = '<i class="fas fa-info-circle me-2"></i>';
                 }
+
+                // Update the status badge HTML
+                statusBadge.innerHTML = `${iconHTML}<span id="status-text">${message}</span>`;
             }
         }
+    }
 
-        // Update progress bar
-        function updateProgressBar() {
-            const progressPercentage = (currentQuestionNumber / totalQuestions) * 100;
-            const progressBar = document.getElementById('progress-bar');
-            if (progressBar) {
-                progressBar.style.width = `${progressPercentage}%`;
-                progressBar.setAttribute('aria-valuenow', progressPercentage);
-            }
-
-            // Update progress text
-            const progressText = document.getElementById('interview-progress-text');
-            if (progressText) {
-                if (progressPercentage === 100) {
-                    progressText.textContent = 'Complete';
-                } else {
-                    progressText.textContent = `${Math.round(progressPercentage)}% complete`;
-                }
-            }
+    // Update progress bar
+    function updateProgressBar() {
+        const progressPercentage = (currentQuestionNumber / totalQuestions) * 100;
+        const progressBar = document.getElementById('progress-bar');
+        if (progressBar) {
+            progressBar.style.width = `${progressPercentage}%`;
+            progressBar.setAttribute('aria-valuenow', progressPercentage);
         }
 
-        // Connect to WebSocket server
-        function connectWebSocket(sessionId) {
-            // Close any existing connection
-            if (socket) {
-                socket.close();
+        // Update progress text
+        const progressText = document.getElementById('interview-progress-text');
+        if (progressText) {
+            if (progressPercentage === 100) {
+                progressText.textContent = 'Complete';
+            } else {
+                progressText.textContent = `${Math.round(progressPercentage)}% complete`;
             }
+        }
+    }
 
-                // Connect to socket.io server
-                socket = io('http://localhost:5000', {
-                    reconnectionAttempts: 5,
-                    timeout: 10000,
-                    transports: ['websocket', 'polling']
-                });
-
-                // Connection events
-                socket.on('connect', () => {
-                    console.log('Connected to server');
-                    socket.emit('join_session', { session_id: sessionId });
-                    updateStatus('Connected to server, joining session...', 'waiting');
-                });
-
-                socket.on('connect_error', (error) => {
-                    console.error('Connection error:', error);
-                    updateStatus(`Connection error: ${error.message}`, 'error');
-                });
-
-                socket.on('disconnect', (reason) => {
-                    console.log('Disconnected:', reason);
-                    updateStatus(`Disconnected: ${reason}`, 'error');
-                });
-
-                // Session events
-                socket.on('joined_session', (data) => {
-                    console.log('Joined session:', data.session_id);
-                    updateStatus('Session joined, waiting for first question...', 'connected');
-                });
-
-                socket.on('interview_status', (data) => {
-                    updateStatus(data.status, 'connected');
-                });
-
-                socket.on('new_question', (data) => {
-                    document.getElementById('current-question').textContent = data.question;
-                    document.getElementById('question-number').textContent = data.question_number;
-                    document.getElementById('total-questions').textContent = data.total_questions;
-
-                    currentQuestionNumber = parseInt(data.question_number);
-                    totalQuestions = parseInt(data.total_questions);
-                    updateProgressBar();
-
-                    // Reset recording state
-                    isRecording = false;
-                    document.getElementById('toggle-recording').classList.remove('recording');
-                    document.getElementById('recording-time').textContent = '00:00';
-
-                    // Hide transcription if shown
-                    document.getElementById('transcription-container').style.display = 'none';
-
-                    // Update interview tip
-                    updateInterviewTip();
-
-                    // Scroll to the question
-                    document.getElementById('current-question').scrollIntoView({ behavior: 'smooth' });
-                    
-            });
-
-            socket.on('answer_received', (data) => {
-                console.log('Answer received:', data);
-                updateStatus('Answer received, processing...', 'waiting');
-            });
-
-            socket.on('interview_complete', (data) => {
-                updateStatus('Interview Complete', 'complete');
-                document.getElementById('results').style.display = 'block';
-                document.getElementById('analysis-results').textContent = JSON.stringify(data, null, 2);
-
-                // Update progress to 100%
-                currentQuestionNumber = totalQuestions;
-                updateProgressBar();
-
-                // Scroll to results
-                document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-            });
-
-            socket.on('error', (data) => {
-                updateStatus(`Error: ${data.message}`, 'error');
-                alert(`Error: ${data.message}`);
-            });
+    // Connect to WebSocket server
+    function connectWebSocket(sessionId) {
+        // Close any existing connection
+        if (socket) {
+            socket.close();
         }
 
-        document.getElementById('submit-text').addEventListener('click', function() {
-            const answerText = document.getElementById('answer-text').value;
-            const generateFollowUp = document.getElementById('generate-followup').checked;
-
-            if (!answerText) {
-                alert('Please enter an answer');
-                return;
-            }
-
-            // Show loading state
-            this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
-            this.disabled = true;
-
-            socket.emit('submit_answer', {
-                session_id: sessionId,
-                text: answerText,
-                generateFollowUp: generateFollowUp
-            });
-
-            document.getElementById('answer-text').value = '';
-
-            // Reset button after a short delay
-            setTimeout(() => {
-                this.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Text Answer';
-                this.disabled = false;
-            }, 1000);
+        // Connect to socket.io server
+        socket = io('http://localhost:5000', {
+            reconnectionAttempts: 5,
+            timeout: 10000,
+            transports: ['websocket', 'polling']
         });
 
-        document.getElementById('record-audio').addEventListener('click', async function() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
+        // Connection events
+        socket.on('connect', () => {
+            debugLog('Connected to server with ID:', socket.id);
+            updateStatus('Connected to server, joining session...', 'connected');
+            
+            // Join the session after connection is established
+            socket.emit('join_session', { session_id: sessionId });
+        });
 
-                mediaRecorder.ondataavailable = (event) => {
-                    audioChunks.push(event.data);
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            updateStatus(`Connection error: ${error.message}`, 'error');
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('Disconnected:', reason);
+            updateStatus(`Disconnected: ${reason}`, 'error');
+        });
+
+        // Session events
+        socket.on('joined_session', (data) => {
+            console.log('Joined session:', data.session_id);
+            updateStatus('Session joined, waiting for first question...', 'connected');
+        });
+
+        socket.on('interview_status', (data) => {
+            let statusMessage = data.status;
+            let statusClass = 'waiting';
+            
+            switch(data.status) {
+                case 'generating_questions':
+                    statusMessage = 'Generating interview questions...';
+                    break;
+                case 'analyzing_responses':
+                    statusMessage = 'Analyzing your responses...';
+                    break;
+                default:
+                    statusMessage = data.status;
+            }
+            
+            updateStatus(statusMessage, statusClass);
+        });
+
+        socket.on('new_question', (data) => {
+            console.log('Received new question:', data);
+            
+            document.getElementById('current-question').textContent = data.question;
+            document.getElementById('question-number').textContent = data.question_number;
+            
+            currentQuestionNumber = parseInt(data.question_number);
+            updateProgressBar();
+
+            // Reset recording state
+            isRecording = false;
+            document.getElementById('toggle-recording').classList.remove('recording');
+            document.getElementById('recording-time').textContent = '00:00';
+
+            // Hide transcription if shown
+            document.getElementById('transcription-container').style.display = 'none';
+
+            // Update interview tip
+            updateInterviewTip();
+
+            // Scroll to the question
+            document.getElementById('current-question').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        socket.on('transcription_result', (data) => {
+            console.log('Received transcription:', data);
+            
+            // Display transcription result
+            document.getElementById('transcription-container').style.display = 'block';
+            document.getElementById('transcription-text').innerHTML = data.transcription || 'No transcription available';
+            
+            updateStatus('Transcription received, waiting for next question...', 'connected');
+        });
+
+        socket.on('answer_received', (data) => {
+            console.log('Answer received:', data);
+            
+            // Show transcription if available
+            if (data.transcription) {
+                document.getElementById('transcription-container').style.display = 'block';
+                document.getElementById('transcription-text').innerHTML = data.transcription;
+            }
+            
+            updateStatus('Answer processed, waiting for next question...', 'connected');
+        });
+
+        socket.on('interview_complete', (data) => {
+            updateStatus('Interview Complete', 'complete');
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('analysis-results').textContent = JSON.stringify(data, null, 2);
+
+            // Update progress to 100%
+            currentQuestionNumber = totalQuestions;
+            updateProgressBar();
+
+            // Scroll to results
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        socket.on('transcription_error', (data) => {
+            console.error('Transcription error:', data);
+            document.getElementById('transcription-container').style.display = 'block';
+            document.getElementById('transcription-text').innerHTML = `<span class="text-danger">Error processing audio: ${data.error}</span>`;
+            updateStatus('Error processing audio', 'error');
+        });
+
+        socket.on('interview_error', (data) => {
+            console.error('Interview error:', data);
+            updateStatus(`Interview error: ${data.error}`, 'error');
+            alert(`Interview error: ${data.error}`);
+        });
+
+        socket.on('interview_cancelled', (data) => {
+            console.log('Interview cancelled');
+            updateStatus('Interview cancelled', 'error');
+        });
+
+        socket.on('tts_error', (data) => {
+            console.warn('Text-to-speech error:', data);
+            // This is not critical, just log it
+        });
+
+        socket.on('error', (data) => {
+            console.error('Socket error:', data);
+            updateStatus(`Error: ${data.message}`, 'error');
+            alert(`Error: ${data.message}`);
+        });
+    }
+
+    document.getElementById('submit-text').addEventListener('click', function() {
+        const answerText = document.getElementById('answer-text').value;
+        const generateFollowUp = document.getElementById('generate-followup').checked;
+
+        if (!answerText) {
+            alert('Please enter an answer');
+            return;
+        }
+
+        // Show loading state
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+        this.disabled = true;
+
+        socket.emit('submit_answer', {
+            session_id: sessionId,
+            text: answerText,
+            generateFollowUp: generateFollowUp
+        });
+
+        document.getElementById('answer-text').value = '';
+
+        // Reset button after a short delay
+        setTimeout(() => {
+            this.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Text Answer';
+            this.disabled = false;
+        }, 1000);
+    });
+
+    document.getElementById('record-audio').addEventListener('click', async function() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                
+                // Convert to base64
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = function() {
+                    const base64Audio = reader.result.split(',')[1];
+                    const generateFollowUp = document.getElementById('generate-followup').checked;
+
+                    console.log('Sending audio data, size:', base64Audio.length);
+
+                    // Send the audio data to the server
+                    socket.emit('submit_answer', {
+                        session_id: sessionId,
+                        audio: base64Audio,
+                        generateFollowUp: generateFollowUp
+                    });
+
+                    updateStatus('Processing audio response...', 'waiting');
+
+                    // Show transcription container
+                    document.getElementById('transcription-container').style.display = 'block';
+                    document.getElementById('transcription-text').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing your answer...';
                 };
 
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    const reader = new FileReader();
-                    reader.readAsDataURL(audioBlob);
-                    reader.onloadend = function() {
-                        const base64Audio = reader.result.split(',')[1];
-                        const generateFollowUp = document.getElementById('generate-followup').checked;
-
-                        socket.emit('submit_answer', {
-                            session_id: sessionId,
-                            audio: base64Audio,
-                            generateFollowUp: generateFollowUp
-                        });
-                    };
-
-                    // Stop all audio tracks
-                    stream.getTracks().forEach(track => track.stop());
-
-                    // Hide recording indicator
-                    document.querySelector('.recording-indicator').style.display = 'none';
+                reader.onerror = function(error) {
+                    console.error('Error reading audio file:', error);
+                    updateStatus('Error processing audio file', 'error');
                 };
 
-                mediaRecorder.start();
-                document.getElementById('record-audio').disabled = true;
-                document.getElementById('stop-audio').disabled = false;
+                // Stop all audio tracks
+                if (audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                }
+            };
 
-                // Show recording indicator
-                document.querySelector('.recording-indicator').style.display = 'inline-block';
-                updateStatus('Recording audio...', 'waiting');
+            mediaRecorder.start();
+            document.getElementById('record-audio').disabled = true;
+            document.getElementById('stop-audio').disabled = false;
 
-            } catch (error) {
-                updateStatus(`Error recording audio: ${error.message}`, 'error');
-                alert(`Error recording audio: ${error.message}`);
-            }
-        });
+            // Show recording indicator
+            document.querySelector('.recording-indicator').style.display = 'inline-block';
+            updateStatus('Recording audio...', 'waiting');
 
-        document.getElementById('stop-audio').addEventListener('click', function() {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                document.getElementById('record-audio').disabled = false;
-                document.getElementById('stop-audio').disabled = true;
-                updateStatus('Processing audio response...', 'waiting');
-            }
-        });
-    </script>
+        } catch (error) {
+            updateStatus(`Error recording audio: ${error.message}`, 'error');
+            alert(`Error recording audio: ${error.message}`);
+        }
+    });
+
+    document.getElementById('stop-audio').addEventListener('click', function() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            document.getElementById('record-audio').disabled = false;
+            document.getElementById('stop-audio').disabled = true;
+            updateStatus('Processing audio response...', 'waiting');
+        }
+    });
+</script>
 </body>
 </html>
