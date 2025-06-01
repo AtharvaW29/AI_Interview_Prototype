@@ -663,6 +663,8 @@
                             const base64Audio = reader.result.split(',')[1];
                             const generateFollowUp = document.getElementById('generate-followup').checked;
 
+                            console.log('Sending audio data for session:', sessionId);
+
                             // Send the audio data to the server
                             socket.emit('submit_answer', {
                                 session_id: sessionId,
@@ -670,33 +672,40 @@
                                 generateFollowUp: generateFollowUp
                             });
 
-                            updateStatus('Processing audio response...', 'waiting');
+                            updateStatus('Processing your answer...', 'waiting');
 
-                            // Show transcription container (server will fill this in)
+                            // Show transcription container
                             document.getElementById('transcription-container').style.display = 'block';
-                            document.getElementById('transcription-text').innerHTML = 'Processing your answer...';
+                            document.getElementById('transcription-text').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing your answer...';
                         };
 
                         // Stop all audio tracks
-                        audioStream.getTracks().forEach(track => track.stop());
+                        if (audioStream) {
+                            audioStream.getTracks().forEach(track => track.stop());
+                            audioStream = null;
+                        }
                     };
 
-                    // Request data from recorder every second and when stopped
+                    // Start recording
                     mediaRecorder.start(1000);
                     initializeAudioContext(stream);
                     isRecording = true;
+                    
+                    // Update UI
                     document.getElementById('toggle-recording').classList.add('recording');
+                    document.getElementById('toggle-recording').innerHTML = '<i class="fas fa-stop"></i>';
 
                     // Start timer
                     recordingStartTime = Date.now();
                     recordingTimer = setInterval(updateRecordingTime, 1000);
 
-                    updateStatus('Recording answer...', 'waiting');
+                    updateStatus('Recording your answer...', 'waiting');
 
                 } catch (error) {
                     console.error('Error starting recording:', error);
                     updateStatus(`Error recording audio: ${error.message}`, 'error');
                     alert(`Error recording audio: ${error.message}`);
+                    isRecording = false;
                 }
             } else {
                 // Stop recording
@@ -707,9 +716,11 @@
                 // Stop timer
                 clearInterval(recordingTimer);
 
-                // Reset UI
-                isRecording = false;
+                // Reset UI - but don't reset isRecording yet, wait for processing
+                document.getElementById('toggle-recording').innerHTML = '<i class="fas fa-microphone"></i>';
                 document.getElementById('toggle-recording').classList.remove('recording');
+                
+                updateStatus('Processing your answer...', 'waiting');
             }
         }
 
@@ -830,6 +841,8 @@
 
     // Update progress bar
     function updateProgressBar() {
+        if (!currentQuestionNumber || !totalQuestions) return;
+
         const progressPercentage = (currentQuestionNumber / totalQuestions) * 100;
         const progressBar = document.getElementById('progress-bar');
         if (progressBar) {
@@ -840,7 +853,7 @@
         // Update progress text
         const progressText = document.getElementById('interview-progress-text');
         if (progressText) {
-            if (progressPercentage === 100) {
+            if (progressPercentage >= 100) {
                 progressText.textContent = 'Complete';
             } else {
                 progressText.textContent = `${Math.round(progressPercentage)}% complete`;
@@ -906,21 +919,44 @@
         });
 
         socket.on('new_question', (data) => {
-            console.log('Received new question:', data);
+            console.log("Received new question:", data);
             
+            // Update question display
             document.getElementById('current-question').textContent = data.question;
             document.getElementById('question-number').textContent = data.question_number;
+            
+            // Update total questions if it changed (due to follow-ups)
+            if (data.total_questions) {
+                totalQuestions = data.total_questions;
+                document.getElementById('total-questions').textContent = totalQuestions;
+            }
             
             currentQuestionNumber = parseInt(data.question_number);
             updateProgressBar();
 
-            // Reset recording state
-            isRecording = false;
-            document.getElementById('toggle-recording').classList.remove('recording');
+            // IMPORTANT: Reset recording state for new question
+            if (isRecording) {
+                // Stop any ongoing recording
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+                // Stop timer
+                clearInterval(recordingTimer);
+                // Reset UI
+                isRecording = false;
+                document.getElementById('toggle-recording').classList.remove('recording');
+            }
+            
+            // Reset recording display
             document.getElementById('recording-time').textContent = '00:00';
-
-            // Hide transcription if shown
+            document.getElementById('toggle-recording').innerHTML = '<i class="fas fa-microphone"></i>';
+            
+            // Hide previous transcription
             document.getElementById('transcription-container').style.display = 'none';
+            document.getElementById('transcription-text').innerHTML = '';
+
+            // Update status
+            updateStatus(`Question ${data.question_number}/${totalQuestions} - Ready to record`, 'connected');
 
             // Update interview tip
             updateInterviewTip();
@@ -940,7 +976,7 @@
         });
 
         socket.on('answer_received', (data) => {
-            console.log('Answer received:', data);
+            console.log('Answer received confirmation:', data);
             
             // Show transcription if available
             if (data.transcription) {
@@ -948,13 +984,27 @@
                 document.getElementById('transcription-text').innerHTML = data.transcription;
             }
             
-            updateStatus('Answer processed, waiting for next question...', 'connected');
+            // Update progress
+            currentQuestionNumber = parseInt(data.current_question_number);
+            updateProgressBar();
+            
+            // Check if this was the last question
+            if (currentQuestionNumber >= data.qlength) {
+                updateStatus('Interview Complete - Processing final analysis...', 'complete');
+            } else {
+                updateStatus(`Answer ${currentQuestionNumber} processed - Waiting for next question...`, 'connected');
+            }
+            
+            // Reset recording button state
+            document.getElementById('toggle-recording').innerHTML = '<i class="fas fa-microphone"></i>';
+            document.getElementById('toggle-recording').classList.remove('recording');
+            isRecording = false;
         });
 
         socket.on('interview_complete', (data) => {
             updateStatus('Interview Complete', 'complete');
             document.getElementById('results').style.display = 'block';
-            document.getElementById('analysis-results').textContent = JSON.stringify(data, null, 2);
+            document.getElementById('analysis-results').textContent = JSON.stringify(data.analysis, null, 2);
 
             // Update progress to 100%
             currentQuestionNumber = totalQuestions;
@@ -1010,7 +1060,7 @@
         socket.emit('submit_answer', {
             session_id: sessionId,
             text: answerText,
-            generateFollowUp: generateFollowUp
+            generateFollowUp: true
         });
 
         document.getElementById('answer-text').value = '';
