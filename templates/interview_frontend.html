@@ -642,6 +642,8 @@
 
         // Toggle recording function
         async function toggleRecording() {
+            console.log('Toggle recording called, current state:', isRecording);
+            
             if (!isRecording) {
                 try {
                     // Start recording
@@ -652,10 +654,20 @@
                     mediaRecorder = new MediaRecorder(stream);
 
                     mediaRecorder.ondataavailable = (event) => {
-                        audioChunks.push(event.data);
+                        if (event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
                     };
 
                     mediaRecorder.onstop = async () => {
+                        console.log('MediaRecorder stopped, processing audio...');
+                        if (audioChunks.length === 0) {
+                            console.warn('No audio data recorded');
+                            updateStatus('No audio recorded, please try again', 'error');
+                            resetRecordingState();
+                            return;
+                        }
+
                         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                         const reader = new FileReader();
                         reader.readAsDataURL(audioBlob);
@@ -679,11 +691,17 @@
                             document.getElementById('transcription-text').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing your answer...';
                         };
 
-                        // Stop all audio tracks
+                        // Clean up audio stream
                         if (audioStream) {
                             audioStream.getTracks().forEach(track => track.stop());
                             audioStream = null;
                         }
+                    };
+
+                    mediaRecorder.onerror = (event) => {
+                        console.error('MediaRecorder error:', event.error);
+                        updateStatus('Recording error occurred', 'error');
+                        resetRecordingState();
                     };
 
                     // Start recording
@@ -700,26 +718,29 @@
                     recordingTimer = setInterval(updateRecordingTime, 1000);
 
                     updateStatus('Recording your answer...', 'waiting');
+                    console.log('Recording started successfully');
 
                 } catch (error) {
                     console.error('Error starting recording:', error);
                     updateStatus(`Error recording audio: ${error.message}`, 'error');
                     alert(`Error recording audio: ${error.message}`);
-                    isRecording = false;
+                    resetRecordingState();
                 }
             } else {
                 // Stop recording
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                console.log('Stopping recording...');
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
                 }
 
                 // Stop timer
                 clearInterval(recordingTimer);
 
-                // Reset UI - but don't reset isRecording yet, wait for processing
-                document.getElementById('toggle-recording').innerHTML = '<i class="fas fa-microphone"></i>';
+                // Update UI to show processing state
+                document.getElementById('toggle-recording').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                 document.getElementById('toggle-recording').classList.remove('recording');
                 
+                // Note: Don't reset isRecording here - let the onstop handler manage the state
                 updateStatus('Processing your answer...', 'waiting');
             }
         }
@@ -861,6 +882,45 @@
         }
     }
 
+    function resetRecordingState() {
+        // Stop any ongoing recording
+        if (isRecording) {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                try {
+                    mediaRecorder.stop();
+                } catch (e) {
+                    console.warn('Error stopping recorder:', e);
+                }
+            }
+            // Stop timer
+            clearInterval(recordingTimer);
+            // Stop audio stream
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+                audioStream = null;
+            }
+        }
+        
+        // Reset state variables
+        isRecording = false;
+        audioChunks = [];
+        recordingStartTime = null;
+        
+        // Reset UI elements
+        const recordButton = document.getElementById('toggle-recording');
+        recordButton.classList.remove('recording');
+        recordButton.innerHTML = '<i class="fas fa-microphone"></i>';
+        
+        // Reset recording time display
+        document.getElementById('recording-time').textContent = '00:00';
+        
+        // Hide previous transcription
+        document.getElementById('transcription-container').style.display = 'none';
+        document.getElementById('transcription-text').innerHTML = '';
+        
+        console.log('Recording state reset for new question');
+    }
+
     // Connect to WebSocket server
     function connectWebSocket(sessionId) {
         // Close any existing connection
@@ -934,19 +994,20 @@
             currentQuestionNumber = parseInt(data.question_number);
             updateProgressBar();
 
-            // IMPORTANT: Reset recording state for new question
-            if (isRecording) {
-                // Stop any ongoing recording
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
-                }
-                // Stop timer
-                clearInterval(recordingTimer);
-                // Reset UI
-                isRecording = false;
-                document.getElementById('toggle-recording').classList.remove('recording');
-            }
-            
+            resetRecordingState();
+
+            // // IMPORTANT: Reset recording state for new question
+            // if (isRecording) {
+            //     // Stop any ongoing recording
+            //     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            //         mediaRecorder.stop();
+            //     }
+            //     // Stop timer
+            //     clearInterval(recordingTimer);
+            //     // Reset UI
+            //     isRecording = false;
+            //     document.getElementById('toggle-recording').classList.remove('recording');
+            // }
             // Reset recording display
             document.getElementById('recording-time').textContent = '00:00';
             document.getElementById('toggle-recording').innerHTML = '<i class="fas fa-microphone"></i>';
@@ -996,9 +1057,9 @@
             }
             
             // Reset recording button state
-            document.getElementById('toggle-recording').innerHTML = '<i class="fas fa-microphone"></i>';
-            document.getElementById('toggle-recording').classList.remove('recording');
-            isRecording = false;
+            // document.getElementById('toggle-recording').innerHTML = '<i class="fas fa-microphone"></i>';
+            // document.getElementById('toggle-recording').classList.remove('recording');
+            // isRecording = false;
         });
 
         socket.on('interview_complete', (data) => {

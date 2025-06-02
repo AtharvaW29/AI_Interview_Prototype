@@ -13,8 +13,6 @@ import pyttsx3
 import uuid
 from extract_SW import add_strengths_and_weaknesses_to_portfolio
 from question_gen import generate_custom_questions
-from read_file_json import read_file, read_json
-from audio_conversion import speech_to_text
 from analyzeSW import analyze_strengths_and_weaknesses
 from follow_up_gen import generate_follow_up
 from description import visa_interview_prompt
@@ -85,7 +83,8 @@ def run_interview(session_id, description, resume_data, num_questions=5):
             "generate_followup": True,
             "updated_portfolio": {},
             "waiting_for_answer": False,
-            "answer_received": threading.Event()
+            "answer_received": threading.Event(),
+            "original_question_count": num_questions
         }
         active_sessions[session_id] = session
 
@@ -105,6 +104,8 @@ def run_interview(session_id, description, resume_data, num_questions=5):
 
         # Step 4: Process questions one by one
         question_index = 0
+        original_questions_asked = 0
+
         while question_index < len(session["questions"]) and session["active"]:
             current_question = session["questions"][question_index]
             session["current_index"] = question_index
@@ -121,9 +122,14 @@ def run_interview(session_id, description, resume_data, num_questions=5):
             }, room=session_id)
 
             # Speak the question
-            tts_error = speak_question(current_question)
-            if tts_error:
-                socketio.emit('tts_error', {'error': tts_error}, room=session_id)
+            def speak_async():
+                tts_error = speak_question(current_question)
+                if tts_error:
+                    socketio.emit('tts_error', {'error': tts_error}, room=session_id)
+
+            tts_thread = threading.Thread(target=speak_async)
+            tts_thread.daemon = True
+            tts_thread.start()
 
             # Wait for answer with timeout
             print(f"Waiting for answer to question {question_index + 1}...")
@@ -143,9 +149,13 @@ def run_interview(session_id, description, resume_data, num_questions=5):
             session["waiting_for_answer"] = False
             print(f"Received answer for question {question_index + 1}")
 
+            # Check if this was an original question (not a follow-up)
+            if question_index < session["original_question_count"]:
+                original_questions_asked += 1
+
             # Generate follow-up question if enabled and not the last question
             if (session.get("generate_followup", False) and
-                    question_index < num_questions - 1 and  # Only for original questions, not follow-ups
+                    original_questions_asked < session["original_question_count"] and  # Only for original questions, not follow-ups
                     current_question in session["interview_data"]):
 
                 try:
@@ -170,10 +180,12 @@ def run_interview(session_id, description, resume_data, num_questions=5):
             socketio.emit('interview_status', {'status': 'analyzing_responses'}, room=session_id)
 
             try:
+                print("Calling the analysis function!")
                 strengths_weaknesses_analysis = analyze_strengths_and_weaknesses(
                     interview_data=session["interview_data"],
                     llm_model=llm
                 )
+                print("Analysis Complete!")
 
                 session["analysis"] = strengths_weaknesses_analysis
                 session["completed"] = True
@@ -186,6 +198,7 @@ def run_interview(session_id, description, resume_data, num_questions=5):
                 updated_portfolio["strengths_weaknesses"] = strengths_weaknesses_analysis
                 session["updated_portfolio"] = updated_portfolio
 
+                print("Emitting interview_complete event...")
                 # Send completion notification
                 socketio.emit('interview_complete', {
                     'analysis': strengths_weaknesses_analysis,
@@ -196,6 +209,8 @@ def run_interview(session_id, description, resume_data, num_questions=5):
 
             except Exception as e:
                 print(f"Error in analysis: {e}")
+                import traceback
+                traceback.print_exc()
                 socketio.emit('interview_error', {'error': f'Analysis failed: {str(e)}'}, room=session_id)
 
         # Cleanup temporary files
@@ -203,11 +218,14 @@ def run_interview(session_id, description, resume_data, num_questions=5):
             os.unlink(des_path)
             os.unlink(res_path)
             print("Temporary files cleaned up")
-        except:
+        except Exception as cleanup_err:
+            print(f"Cleanup Error: {cleanup_err}")
             pass
 
     except Exception as err:
         print(f"Error in interview session: {err}")
+        import traceback
+        traceback.print_exc()
         socketio.emit('interview_error', {'error': str(err)}, room=session_id)
 
     finally:
@@ -396,10 +414,7 @@ def handle_answer(data):
 
     print(f"Answer stored for question {session['current_index'] + 1}: {answer[:100]}...")
 
-    # Signal that answer was received
-    session["answer_received"].set()
-
-    # Send confirmation to client
+    # Send confirmation to client FIRST
     emit('answer_received', {
         'question': current_question,
         'answer': answer,
@@ -408,6 +423,9 @@ def handle_answer(data):
         'qlength': len(session['questions']),
         'current_question_number': session['current_index'] + 1
     })
+
+    # THEN signal that answer was received (this will trigger next question)
+    session["answer_received"].set()
 
 
 @socketio.on('cancel_interview')
@@ -431,10 +449,13 @@ def get_analysis():
 
     session = active_sessions[session_id]
 
-    if not session["completed"]:
+    print(f"Analysis request for session {session_id}: completed={session.get('completed', False)}")
+
+    if not session.get("completed", False):
         return jsonify({
             "mtype": "warning",
-            "message": "Analysis not yet complete"
+            "message": "Analysis not yet complete",
+            "status": "analyzing" if session.get("active", False) else "inactive"
         })
 
     return jsonify({
