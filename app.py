@@ -20,7 +20,7 @@ from description import visa_interview_prompt
 # Initial Config
 app = Flask(__name__)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", ping_timeout=300, ping_interval=120, max_http_buffer_size=50*1024*1024)
 
 # Track Active Interview Sessions
 active_sessions = {}
@@ -131,9 +131,9 @@ def run_interview(session_id, description, resume_data, num_questions=5):
             tts_thread.daemon = True
             tts_thread.start()
 
-            # Wait for answer with timeout
+            # Wait for answer with longer timeout for recordings
             print(f"Waiting for answer to question {question_index + 1}...")
-            answer_received = session["answer_received"].wait(timeout=300)  # 5 minutes timeout
+            answer_received = session["answer_received"].wait(timeout=300)
 
             if not answer_received:
                 print(f"Timeout waiting for answer to question {question_index + 1}")
@@ -153,24 +153,45 @@ def run_interview(session_id, description, resume_data, num_questions=5):
             if question_index < session["original_question_count"]:
                 original_questions_asked += 1
 
-            # Generate follow-up question if enabled and not the last question
-            if (session.get("generate_followup", False) and
-                    original_questions_asked < session["original_question_count"] and  # Only for original questions, not follow-ups
-                    current_question in session["interview_data"]):
+            # Generate follow-up question if enabled and conditions are met
+            should_generate_followup = (
+                    session.get("generate_followup", False) and
+                    original_questions_asked < session["original_question_count"] and
+                    current_question in session["interview_data"] and
+                    session["active"]  # Extra safety check
+            )
 
+            if should_generate_followup:
                 try:
                     print("Generating follow-up question...")
+                    # Emit status to frontend
+                    socketio.emit('interview_status', {'status': 'generating_followup'}, room=session_id)
+
                     answer = session["interview_data"][current_question]
                     follow_up = generate_follow_up(
                         question=current_question,
                         answer=answer,
                         model=llm
                     )
-                    # Insert follow-up after current question
-                    session["questions"].insert(question_index + 1, follow_up)
-                    print(f"Follow-up added. Total questions now: {len(session['questions'])}")
+
+                    # Double-check session is still active before modifying questions
+                    if session["active"] and follow_up and follow_up.strip():
+                        # Insert follow-up after current question
+                        session["questions"].insert(question_index + 1, follow_up)
+                        print(f"Follow-up added. Total questions now: {len(session['questions'])}")
+
+                        # Emit updated question count to frontend
+                        socketio.emit('questions_updated', {
+                            'total_questions': len(session["questions"])
+                        }, room=session_id)
+                    else:
+                        print("Session inactive or empty follow-up, skipping insertion")
+
                 except Exception as e:
                     print(f"Error generating follow-up: {e}")
+                    # Don't break the interview, just continue without follow-up
+                    import traceback
+                    traceback.print_exc()
 
             question_index += 1
 
@@ -364,6 +385,8 @@ def handle_answer(data):
     if audio_data:
         temp_audio_path = None
         try:
+            # Emit processing status
+            emit('audio_processing', {'status': 'processing'})
             # Decode and save audio
             audio_bytes = base64.b64decode(audio_data)
             temp_filename = f"temp_audio_{uuid.uuid4().hex}.wav"
@@ -436,6 +459,23 @@ def handle_cancel(data):
         active_sessions[session_id]["answer_received"].set()  # Unblock waiting thread
         emit('interview_cancelled', {}, room=session_id)
         print(f"Interview session {session_id} cancelled")
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"Client disconnected: {request.sid}")
+
+
+@socketio.on('connect_error')
+def handle_connect_error(data):
+    print(f"Connection error: {data}")
+
+
+@socketio.on('heartbeat')
+def handle_heartbeat(data):
+    session_id = data.get('session_id')
+    if session_id and session_id in active_sessions:
+        emit('heartbeat_response', {'timestamp': time.time()})
 
 
 @app.route('/api/get-analysis', methods=['GET'])
