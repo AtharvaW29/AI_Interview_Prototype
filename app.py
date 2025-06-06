@@ -288,6 +288,11 @@ def start_interview():
     )
 
     # Process resume file
+    # Accept the file in pdf
+
+    # JSONify it as per portfolio which is required for the model
+
+    # Finally return the json as a file
     resume_data = {}
     if 'resume_file' in request.files:
         resume_file = request.files['resume_file']
