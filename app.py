@@ -11,7 +11,6 @@ import tempfile
 import time
 import pyttsx3
 import uuid
-from extract_SW import add_strengths_and_weaknesses_to_portfolio
 from question_gen import generate_custom_questions
 from analyzeSW import analyze_strengths_and_weaknesses
 from follow_up_gen import generate_follow_up

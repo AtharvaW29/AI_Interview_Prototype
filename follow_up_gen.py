@@ -19,8 +19,8 @@ def generate_follow_up(question, answer, model):
             voices = local_engine.getProperty('voices')
             if len(voices) > 1:
                 local_engine.setProperty('voice', voices[1].id)
-            local_engine.say(follow_up)
-            local_engine.runAndWait()
+            # local_engine.say(follow_up)
+            # local_engine.runAndWait()
         except RuntimeError as e:
             if "run loop already started" in str(e):
                 print("TTS engine busy, skipping follow-up speech")
