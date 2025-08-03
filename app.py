@@ -5,7 +5,9 @@ from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import whisper
-from langchain_community.llms import Ollama
+# New Imports for Locally trained model
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
 import json
 import tempfile
 import time
@@ -15,6 +17,7 @@ from question_gen import generate_custom_questions
 from analyzeSW import analyze_strengths_and_weaknesses
 from follow_up_gen import generate_follow_up
 from description import visa_interview_prompt
+
 
 # Initial Config
 app = Flask(__name__)
@@ -46,6 +49,60 @@ def speak_question(question):
         return str(e)
     return None
 
+class VisaOfficerLLM:
+    def __int__(self, model_path="visa_officer_merged"):
+        print(f"Loading Custom Fine Tuned Model from {model_path}...")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            torch_dtype=torch.float16,
+            device_map="auto",
+            low_cpu_mem_usage=True
+        )
+        self.conversion_history = []
+        print("Fine-tuned model loaded successfully!")
+
+        # Hyper Parameters here Tune if Necessary after interpretation!
+    def generate(self, prompt, max_tokens=512, temperature=0.7):
+            """Generate response using the fine-tuned model"""
+            system_prompt = """You are an experienced Visa Officer conducting a visa interview. You are professional, thorough, and fair. You ask relevant questions 
+                   to assess the applicant's eligibility and intentions. Be direct but courteous."""
+
+            # Message Format
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+
+            try:
+                formatted_input = self.tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True
+                )
+            except:
+                # Fallback Formatting if the above template doesn't work
+                formatted_input = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{system_prompt}<|eot_id|><|start_header_id|>user<|end_header_id|>\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n"
+
+            inputs = self.tokenizer.encode(formatted_input, return_tensors="pt")
+
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    inputs,
+                    max_new_tokens=max_tokens,
+                    temperature=temperature,
+                    do_sample=True,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id
+                )
+
+            response = self.tokenizer.decode(outputs[0][len(inputs[0]):], skip_special_tokens=True)
+            return response.strip()
+
+
+# Initialize the New Model Here
+visa_llm = VisaOfficerLLM()
+
 
 def run_interview(session_id, description, resume_data, num_questions=5):
     """Background thread to run interview process with dynamic inputs"""
@@ -68,8 +125,8 @@ def run_interview(session_id, description, resume_data, num_questions=5):
         res_file.close()
         print("Saved resume file successfully!")
 
-        # Initialize LLM
-        llm = Ollama(model="llama3")
+        # Initialize LLM and Use it Here!
+        llm = visa_llm
 
         # Initialize the session
         session = {

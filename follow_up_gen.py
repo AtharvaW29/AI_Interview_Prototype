@@ -1,43 +1,32 @@
-import pyttsx3
+import re
 
 def generate_follow_up(question, answer, model):
-    """Generate follow-up question and retrieve answer using Llama3."""
-    prompt = (
-        f"Act like an interviewer and ask questions based on the response to get to know more about it in detail and only ask questions,be professional and to the point if needed. Here is the question asked and the response given by me .Interviewer: {question}\n Student: {answer}\n"
-        f"Now ask a single question based on the response to test whether the candidate is giving expected answers! If the answer is very different from the question asked, ask them to stay on point and get in detail."
-    )
+    """Generate follow-up question using the fine-tuned model"""
+
+    prompt = f"""As a visa officer conducting an interview, I asked: "{question}"
+
+The applicant answered: "{answer}"
+
+Based on this response, generate ONE specific follow-up question that would help clarify or dig deeper into their answer. The follow-up should be professional and relevant to visa assessment.
+
+Follow-up question:"""
 
     try:
-        follow_up = model.invoke(prompt)
-        print(follow_up)
+        response = model.generate(prompt, max_tokens=200, temperature=0.7)
 
-        # Create a new TTS engine instance for this specific call
-        local_engine = None
-        try:
-            local_engine = pyttsx3.init()
-            local_engine.setProperty('rate', 160)
-            voices = local_engine.getProperty('voices')
-            if len(voices) > 1:
-                local_engine.setProperty('voice', voices[1].id)
-            # local_engine.say(follow_up)
-            # local_engine.runAndWait()
-        except RuntimeError as e:
-            if "run loop already started" in str(e):
-                print("TTS engine busy, skipping follow-up speech")
-            else:
-                print(f"TTS error in follow-up: {e}")
-        except Exception as tts_error:
-            print(f"TTS error in follow-up: {tts_error}")
-        finally:
-            if local_engine:
-                try:
-                    local_engine.stop()
-                    del local_engine
-                except:
-                    pass
+        # Clean up the response
+        follow_up = response.strip()
 
-        return follow_up
+        # Remove any prefixes or numbering
+        follow_up = re.sub(r'^(Follow-up question:|Question:|Answer:|Response:)', '', follow_up,
+                           flags=re.IGNORECASE).strip()
+
+        # Ensure it's a question
+        if follow_up and not follow_up.endswith('?'):
+            follow_up += '?'
+
+        return follow_up if follow_up and len(follow_up) > 10 else None
 
     except Exception as e:
-        print(f"Error in generate_follow_up: {e}")
+        print(f"Error generating follow-up: {e}")
         return None
